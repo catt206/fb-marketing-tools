@@ -1,0 +1,24 @@
+{
+  "name": "fb-marketing-tools",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "extension"
+  ],
+  "scripts": {
+    "backend:dev": "npm run dev -w backend",
+    "backend:build": "npm run build -w backend",
+    "backend:lint": "npm run lint -w backend",
+    "backend:typecheck": "npm run typecheck -w backend",
+    "extension:dev": "npm run dev -w extension",
+    "extension:build": "npm run build -w extension",
+    "extension:lint": "npm run lint -w extension",
+    "extension:typecheck": "npm run typecheck -w extension",
+    "lint": "npm run backend:lint && npm run extension:lint",
+    "typecheck": "npm run backend:typecheck && npm run extension:typecheck",
+    "build": "npm run backend:build && npm run extension:build"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

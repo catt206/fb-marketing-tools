@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Facebook Marketing Assistant (Policy-compliant)",
+  "version": "1.0.0",
+  "action": {
+    "default_title": "FB Marketing",
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "storage",
+    "identity"
+  ],
+  "host_permissions": [
+    "http://localhost:4000/*",
+    "http://127.0.0.1:4000/*"
+  ]
+}

@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FB Marketing</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container" style="width: 360px">
+      <div class="card">
+        <div class="row" style="justify-content: space-between">
+          <div>
+            <div class="title">FB Marketing Assistant</div>
+            <div id="status" class="muted">...</div>
+          </div>
+          <button id="openOptions">Dashboard</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="card">
+        <div class="title">Đăng nhập</div>
+        <div class="col" style="margin-top: 8px">
+          <div class="row">
+            <input id="email" type="email" placeholder="Email" />
+          </div>
+          <div class="row">
+            <input id="password" type="password" placeholder="Mật khẩu (>= 8 ký tự)" />
+          </div>
+          <div class="row" style="justify-content: space-between">
+            <button id="login" class="primary">Login</button>
+            <button id="register">Register</button>
+            <button id="logout" class="danger">Logout</button>
+          </div>
+          <div id="authMsg" class="muted"></div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="card">
+        <div class="title">Kết nối Facebook</div>
+        <div class="muted" style="margin-top: 6px">
+          Chỉ dùng Graph API/OAuth hợp lệ. Không scraping, không giả lập hành vi.
+        </div>
+        <div class="row" style="margin-top: 10px; justify-content: space-between">
+          <button id="connectFb" class="primary">Connect</button>
+          <button id="refreshSummary">Refresh</button>
+        </div>
+        <div id="fbMsg" class="muted" style="margin-top: 8px"></div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="card">
+        <div class="title">Tổng quan</div>
+        <div id="summary" class="muted" style="margin-top: 8px">...</div>
+      </div>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>
+
