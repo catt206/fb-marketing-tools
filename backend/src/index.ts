@@ -111,6 +111,14 @@ if (!env.S3_ENABLED) {
   app.use("/uploads", express.static(uploadsDir, { fallthrough: false }));
 }
 
+app.get("/", (_req, res) =>
+  res.json({
+    ok: true,
+    service: "fb-marketing-tools-backend",
+    health: "/health",
+    api: "/api"
+  })
+);
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.use("/api", apiRoutes({ env }));
 app.use(errorMiddleware);
