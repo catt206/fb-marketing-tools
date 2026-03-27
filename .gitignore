@@ -1,0 +1,14 @@
+node_modules/
+
+backend/.env
+backend/env.local
+backend/env.*.local
+
+.env
+env.local
+.env.local
+
+backend/dist/
+extension/dist/
+
+*.log
