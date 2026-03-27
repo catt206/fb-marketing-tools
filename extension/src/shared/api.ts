@@ -15,12 +15,28 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   const [config, auth] = await Promise.all([getConfig(), getAuthState()]);
   const url = new URL(path, config.backendBaseUrl);
   const headers = new Headers(init?.headers ?? {});
-  headers.set("content-type", "application/json");
+  if (init?.body !== undefined) {
+    headers.set("content-type", "application/json");
+  }
   if (auth.jwtToken) headers.set("authorization", `Bearer ${auth.jwtToken}`);
 
-  const response = await fetch(url.toString(), { ...init, headers });
+  let response: Response;
+  try {
+    response = await fetch(url.toString(), { ...init, headers });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to fetch";
+    throw new Error(`${message}. url=${url.toString()}`);
+  }
+
   const text = await response.text();
-  const json = text ? (JSON.parse(text) as unknown) : null;
+  let json: unknown = null;
+  if (text) {
+    try {
+      json = JSON.parse(text) as unknown;
+    } catch {
+      json = { message: text };
+    }
+  }
 
   if (!response.ok) {
     const message =
@@ -31,4 +47,3 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   }
   return json as T;
 }
-
