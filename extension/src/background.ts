@@ -29,13 +29,15 @@ async function startFacebookOAuth(params: { scopes?: string[] }): Promise<{ code
   }
 
   const redirectUri = chrome.identity.getRedirectURL("fb");
-  const scopes = params.scopes ?? ["public_profile", "email"];
+  const scopes = params.scopes ?? [];
 
   const authUrl = new URL("https://www.facebook.com/v20.0/dialog/oauth");
   authUrl.searchParams.set("client_id", config.facebookAppId);
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
-  authUrl.searchParams.set("scope", scopes.join(","));
+  if (scopes.length > 0) {
+    authUrl.searchParams.set("scope", scopes.join(","));
+  }
 
   const responseUrl = await chrome.identity.launchWebAuthFlow({
     url: authUrl.toString(),
