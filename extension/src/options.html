@@ -83,14 +83,89 @@
           <div class="muted" style="margin-top: 6px">Hỗ trợ spintax: {a|b|c}</div>
           <div class="divider"></div>
           <div class="col">
+            <div class="title" style="font-size: 14px">Mẫu BĐS (preset)</div>
+            <div class="muted" style="margin-top: 6px">Tạo nhanh nội dung theo thuộc tính căn hộ</div>
+            <div class="divider"></div>
+            <div class="row" style="flex-wrap: wrap; gap: 10px">
+              <label class="row" style="gap: 6px; align-items: center"><input type="checkbox" id="reZoneRainbow" style="width: auto" />Rainbow</label>
+              <label class="row" style="gap: 6px; align-items: center"><input type="checkbox" id="reZoneOri" style="width: auto" />Ori</label>
+              <label class="row" style="gap: 6px; align-items: center"><input type="checkbox" id="reZoneBs" style="width: auto" />BS</label>
+              <label class="row" style="gap: 6px; align-items: center"><input type="checkbox" id="reZoneGh" style="width: auto" />GH</label>
+              <label class="row" style="gap: 6px; align-items: center"><input type="checkbox" id="reZoneLbv" style="width: auto" />LBV</label>
+              <label class="row" style="gap: 6px; align-items: center"><input type="checkbox" id="reZoneMcp" style="width: auto" />MCP</label>
+              <label class="row" style="gap: 6px; align-items: center"><input type="checkbox" id="reZoneBe" style="width: auto" />BE</label>
+            </div>
+            <div class="row">
+              <div style="flex: 1">
+                <label>Loại căn</label>
+                <select id="reUnitType">
+                  <option value="studio">studio</option>
+                  <option value="1pn">1pn</option>
+                  <option value="1pn+">1pn+</option>
+                  <option value="2pn">2pn</option>
+                  <option value="2pn+">2pn+</option>
+                  <option value="3pn">3pn</option>
+                  <option value="3pn+">3pn+</option>
+                  <option value="duplex">duplex</option>
+                  <option value="penthouse">penthouse</option>
+                </select>
+              </div>
+              <div style="flex: 1">
+                <label>Nội thất</label>
+                <select id="reInterior">
+                  <option value="full nội thất">full nội thất</option>
+                  <option value="nội thất cơ bản">nội thất cơ bản</option>
+                  <option value="bếp rèm">bếp rèm</option>
+                  <option value="nhà trống">nhà trống</option>
+                </select>
+              </div>
+              <div style="flex: 1">
+                <label>Hướng</label>
+                <select id="reDirection">
+                  <option value="đông">đông</option>
+                  <option value="tây">tây</option>
+                  <option value="nam">nam</option>
+                  <option value="bắc">bắc</option>
+                  <option value="đông nam">đông nam</option>
+                  <option value="đông bắc">đông bắc</option>
+                  <option value="tây nam">tây nam</option>
+                  <option value="tây bắc">tây bắc</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div style="flex: 1">
+                <label>Giá (tùy chọn)</label>
+                <input id="rePrice" placeholder="VD: 12tr/tháng hoặc 3.2 tỷ" />
+              </div>
+              <div style="flex: 1">
+                <label>Liên hệ (tùy chọn)</label>
+                <input id="reContact" placeholder="VD: 09xx xxx xxx" />
+              </div>
+            </div>
+            <div>
+              <label>Ghi chú (tùy chọn)</label>
+              <textarea id="reNote" placeholder="VD: view đẹp, tầng cao, nhận nhà ngay..."></textarea>
+            </div>
+            <div class="row" style="justify-content: space-between">
+              <button id="reApplyToTemplate" class="primary">Áp dụng vào form template</button>
+              <div id="reMsg" class="muted"></div>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="col">
             <div class="row">
               <div style="flex: 1">
                 <label>Name</label>
                 <input id="tplName" />
               </div>
               <div style="flex: 1">
-                <label>Image URL (optional)</label>
-                <input id="tplImageUrl" placeholder="https://..." />
+                <label>Image (optional)</label>
+                <div class="row" style="gap: 8px">
+                  <input id="tplImageUrl" placeholder="https://..." />
+                  <input id="tplImageFile" type="file" accept="image/*" style="width: 220px" />
+                  <button id="tplUploadImage">Upload</button>
+                </div>
               </div>
             </div>
             <div>
@@ -129,9 +204,34 @@
                 <select id="jobPage"></select>
               </div>
               <div style="flex: 1">
-                <label>Group ID (manual)</label>
-                <input id="jobGroupId" placeholder="1234567890" />
+                <label>Group IDs (tối đa 10, mỗi dòng 1 ID)</label>
+                <textarea id="jobGroupIds" placeholder="1234567890&#10;2345678901"></textarea>
               </div>
+            </div>
+            <div class="card" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08)">
+              <div class="row" style="justify-content: space-between; align-items: center">
+                <div>
+                  <div class="title" style="font-size: 14px">Saved Groups</div>
+                  <div class="muted" style="margin-top: 4px">Tick chọn tối đa 10 group để tự điền vào ô Group IDs</div>
+                </div>
+                <button id="groupsRefresh">Refresh</button>
+              </div>
+              <div class="divider"></div>
+              <div class="row">
+                <div style="flex: 1">
+                  <label>Group URL hoặc Group ID</label>
+                  <input id="groupAddInput" placeholder="https://www.facebook.com/groups/1234567890 hoặc 1234567890" />
+                </div>
+                <div style="flex: 1">
+                  <label>Tên hiển thị (optional)</label>
+                  <input id="groupAddName" placeholder="VD: Group cư dân Rainbow" />
+                </div>
+                <div style="width: 160px; align-self: end">
+                  <button id="groupAddBtn" class="primary" style="width: 100%">Add</button>
+                </div>
+              </div>
+              <div id="groupsMsg" class="muted" style="margin-top: 8px"></div>
+              <div id="groupsList" class="list" style="margin-top: 10px"></div>
             </div>
             <div class="row">
               <div style="flex: 1">
@@ -141,8 +241,12 @@
                 </select>
               </div>
               <div style="flex: 1">
-                <label>Image URL (optional)</label>
-                <input id="jobImageUrl" placeholder="https://..." />
+                <label>Image (optional)</label>
+                <div class="row" style="gap: 8px">
+                  <input id="jobImageUrl" placeholder="https://..." />
+                  <input id="jobImageFile" type="file" accept="image/*" style="width: 220px" />
+                  <button id="jobUploadImage">Upload</button>
+                </div>
               </div>
             </div>
             <div>

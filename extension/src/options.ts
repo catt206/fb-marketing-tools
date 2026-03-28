@@ -42,7 +42,89 @@ type AuditLog = {
   message?: string;
 };
 
+type SavedGroup = {
+  _id: string;
+  groupId: string;
+  name?: string;
+  postedBefore: boolean;
+};
+
 let auditCursor: string | null = null;
+let savedGroups: SavedGroup[] = [];
+
+async function uploadImageFromFileInput(params: { fileInputId: string; urlInputId: string; msgId: string }) {
+  const fileInput = mustGetElement<HTMLInputElement>(params.fileInputId);
+  const file = fileInput.files?.[0];
+  if (!file) {
+    setText(params.msgId, "Chọn file ảnh trước.");
+    return;
+  }
+
+  const [config, auth] = await Promise.all([getConfig(), getAuthState()]);
+  if (!auth.jwtToken) {
+    setText(params.msgId, "Mở popup để đăng nhập trước.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("image", file, file.name);
+
+  const url = new URL("/api/uploads/image", config.backendBaseUrl).toString();
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { authorization: `Bearer ${auth.jwtToken}` },
+    body: formData
+  });
+
+  const json = (await response.json().catch(() => null)) as any;
+  if (!response.ok) {
+    const message = (json && typeof json === "object" && json && typeof json.error === "string" ? json.error : null) ?? `Upload failed (${response.status})`;
+    setText(params.msgId, message);
+    return;
+  }
+
+  mustGetElement<HTMLInputElement>(params.urlInputId).value = typeof json?.url === "string" ? json.url : "";
+  setText(params.msgId, "Uploaded.");
+}
+
+function buildRealEstateTemplate() {
+  const zones: string[] = [];
+  if (mustGetElement<HTMLInputElement>("reZoneRainbow").checked) zones.push("Rainbow");
+  if (mustGetElement<HTMLInputElement>("reZoneOri").checked) zones.push("Ori");
+  if (mustGetElement<HTMLInputElement>("reZoneBs").checked) zones.push("BS");
+  if (mustGetElement<HTMLInputElement>("reZoneGh").checked) zones.push("GH");
+  if (mustGetElement<HTMLInputElement>("reZoneLbv").checked) zones.push("LBV");
+  if (mustGetElement<HTMLInputElement>("reZoneMcp").checked) zones.push("MCP");
+  if (mustGetElement<HTMLInputElement>("reZoneBe").checked) zones.push("BE");
+
+  if (zones.length === 0) {
+    throw new Error("Chọn ít nhất 1 phân khu.");
+  }
+
+  const unitType = mustGetElement<HTMLSelectElement>("reUnitType").value.trim();
+  const interior = mustGetElement<HTMLSelectElement>("reInterior").value.trim();
+  const direction = mustGetElement<HTMLSelectElement>("reDirection").value.trim();
+  const priceRaw = mustGetElement<HTMLInputElement>("rePrice").value.trim();
+  const contactRaw = mustGetElement<HTMLInputElement>("reContact").value.trim();
+  const noteRaw = mustGetElement<HTMLTextAreaElement>("reNote").value.trim();
+
+  const zonesText = zones.map((z) => `phân khu ${z}`).join(", ");
+  const price = priceRaw ? priceRaw : "{giá tốt|giá thương lượng|inbox}";
+  const contact = contactRaw ? contactRaw : "{Inbox|Liên hệ} để nhận thông tin";
+  const note = noteRaw ? noteRaw : "{nhà đẹp|view thoáng|tầng đẹp|nhận nhà ngay}";
+
+  const title = `BĐS - ${zones.join("/")}-${unitType}-${interior}-${direction}`;
+  const text = [
+    `🏢 {CHO THUÊ|BÁN} {căn hộ|căn} ${unitType.toUpperCase()} (${zonesText})`,
+    `✨ Nội thất: ${interior}`,
+    `🧭 Hướng: ${direction}`,
+    `💰 Giá: ${price}`,
+    `📝 ${note}`,
+    `☎️ ${contact}`
+  ].join("\n");
+
+  return { title, text };
+}
 
 async function init() {
   await loadConfigUi();
@@ -55,8 +137,101 @@ async function init() {
     return;
   }
 
-  await Promise.all([loadSettingsUi(), refreshAccounts(), refreshTemplates(), refreshJobs(), refreshAudit(true)]);
+  await Promise.all([loadSettingsUi(), refreshAccounts(), refreshTemplates(), refreshJobs(), refreshAudit(true), refreshSavedGroups()]);
   await refreshJobAccountOptions();
+}
+
+function parseGroupIdFromInput(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) throw new Error("GROUP_REQUIRED");
+  if (/^\d+$/.test(trimmed)) return trimmed;
+  try {
+    const url = new URL(trimmed);
+    const match = url.pathname.match(/\/groups\/(\d+)/);
+    if (match?.[1]) return match[1];
+  } catch {
+    // ignore
+  }
+  throw new Error("INVALID_GROUP_INPUT");
+}
+
+function syncGroupSelectionToTextarea() {
+  const selected = savedGroups
+    .filter((g) => {
+      const checkbox = document.querySelector<HTMLInputElement>(`input[data-group-id="${g.groupId}"]`);
+      return Boolean(checkbox?.checked);
+    })
+    .map((g) => g.groupId);
+
+  mustGetElement<HTMLTextAreaElement>("jobGroupIds").value = selected.join("\n");
+}
+
+function applyTextareaToGroupSelection() {
+  const raw = mustGetElement<HTMLTextAreaElement>("jobGroupIds").value.trim();
+  const selected = new Set(raw.split(/[\n,\t ]+/g).map((s) => s.trim()).filter(Boolean));
+  for (const g of savedGroups) {
+    const checkbox = document.querySelector<HTMLInputElement>(`input[data-group-id="${g.groupId}"]`);
+    if (checkbox) checkbox.checked = selected.has(g.groupId) && !checkbox.disabled;
+  }
+}
+
+async function refreshSavedGroups() {
+  try {
+    const data = await apiFetch<{ groups: SavedGroup[] }>("/api/groups?limit=200");
+    savedGroups = data.groups ?? [];
+    renderSavedGroups();
+    setText("groupsMsg", "");
+    applyTextareaToGroupSelection();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    setText("groupsMsg", message);
+  }
+}
+
+function renderSavedGroups() {
+  const list = mustGetElement<HTMLDivElement>("groupsList");
+  list.innerHTML = "";
+
+  for (const g of savedGroups) {
+    const el = document.createElement("div");
+    el.className = "item";
+    const label = g.name?.trim() ? `${g.name} (${g.groupId})` : g.groupId;
+    const status = g.postedBefore ? "đã đăng trước đó" : "chưa đăng";
+    el.innerHTML = `
+      <div class="meta">
+        <div class="row" style="justify-content: space-between; align-items: center">
+          <label class="row" style="gap: 8px; align-items: center">
+            <input type="checkbox" data-group-id="${escapeHtml(g.groupId)}" style="width:auto" ${g.postedBefore ? "disabled" : ""} />
+            <span>${escapeHtml(label)}</span>
+          </label>
+          <button class="danger" data-action="delete-group" data-id="${escapeHtml(g._id)}">Delete</button>
+        </div>
+        <div class="muted">${escapeHtml(status)}</div>
+      </div>
+    `;
+
+    const checkbox = el.querySelector<HTMLInputElement>(`input[data-group-id="${g.groupId}"]`);
+    checkbox?.addEventListener("change", async () => {
+      const checked = savedGroups
+        .map((sg) => document.querySelector<HTMLInputElement>(`input[data-group-id="${sg.groupId}"]`))
+        .filter((c) => Boolean(c?.checked)).length;
+      if (checked > 10) {
+        if (checkbox) checkbox.checked = false;
+        setText("groupsMsg", "Chỉ chọn tối đa 10 group.");
+        return;
+      }
+      setText("groupsMsg", "");
+      syncGroupSelectionToTextarea();
+    });
+
+    const deleteBtn = el.querySelector<HTMLButtonElement>("button[data-action='delete-group']");
+    deleteBtn?.addEventListener("click", async () => {
+      await apiFetch(`/api/groups/${encodeURIComponent(g._id)}`, { method: "DELETE" });
+      await refreshSavedGroups();
+    });
+
+    list.appendChild(el);
+  }
 }
 
 async function loadConfigUi() {
@@ -271,8 +446,8 @@ async function loadPagesForAccount(accountId: string) {
 async function createJob() {
   const accountId = mustGetElement<HTMLSelectElement>("jobAccount").value;
   const targetType = mustGetElement<HTMLSelectElement>("jobTargetType").value as "PAGE" | "GROUP";
-  const targetId =
-    targetType === "PAGE" ? mustGetElement<HTMLSelectElement>("jobPage").value : mustGetElement<HTMLInputElement>("jobGroupId").value.trim();
+  const targetId = targetType === "PAGE" ? mustGetElement<HTMLSelectElement>("jobPage").value : "";
+  const groupIdsRaw = targetType === "GROUP" ? mustGetElement<HTMLTextAreaElement>("jobGroupIds").value.trim() : "";
   const templateId = mustGetElement<HTMLSelectElement>("jobTemplate").value;
   const imageUrl = mustGetElement<HTMLInputElement>("jobImageUrl").value.trim();
   const message = mustGetElement<HTMLTextAreaElement>("jobMessage").value;
@@ -280,29 +455,57 @@ async function createJob() {
   const enableSpin = mustGetElement<HTMLInputElement>("jobEnableSpin").checked;
 
   if (!accountId) throw new Error("ACCOUNT_REQUIRED");
-  if (!targetId) throw new Error("TARGET_REQUIRED");
   if (!scheduledAt) throw new Error("SCHEDULED_AT_REQUIRED");
 
-  await apiFetch("/api/jobs", {
-    method: "POST",
-    body: JSON.stringify({
-      accountId,
-      targetType,
-      targetId,
-      templateId: templateId || undefined,
-      imageUrl: imageUrl || undefined,
-      message: message.trim() ? message : undefined,
-      scheduledAt,
-      enableSpin
-    })
-  });
-  setText("jobMsg", "Scheduled.");
+  if (targetType === "GROUP") {
+    const targetIds = groupIdsRaw
+      .split(/[\n,\t ]+/g)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const uniqueTargetIds = Array.from(new Set(targetIds));
+    if (uniqueTargetIds.length === 0) throw new Error("TARGET_REQUIRED");
+    if (uniqueTargetIds.length > 10) throw new Error("MAX_10_GROUPS");
+
+    const result = await apiFetch<{ jobs: unknown[]; skipped: { targetId: string; reason: string }[] }>("/api/jobs/bulk", {
+      method: "POST",
+      body: JSON.stringify({
+        accountId,
+        targetType,
+        targetIds: uniqueTargetIds,
+        templateId: templateId || undefined,
+        imageUrl: imageUrl || undefined,
+        message: message.trim() ? message : undefined,
+        scheduledAt,
+        enableSpin
+      })
+    });
+
+    const skippedText = result.skipped?.length ? ` Skipped: ${result.skipped.map((s) => `${s.targetId}(${s.reason})`).join(", ")}` : "";
+    setText("jobMsg", `Scheduled ${result.jobs.length} jobs.${skippedText}`);
+  } else {
+    if (!targetId) throw new Error("TARGET_REQUIRED");
+    await apiFetch("/api/jobs", {
+      method: "POST",
+      body: JSON.stringify({
+        accountId,
+        targetType,
+        targetId,
+        templateId: templateId || undefined,
+        imageUrl: imageUrl || undefined,
+        message: message.trim() ? message : undefined,
+        scheduledAt,
+        enableSpin
+      })
+    });
+    setText("jobMsg", "Scheduled.");
+  }
   await refreshJobs();
 }
 
 async function validateGroup() {
   const accountId = mustGetElement<HTMLSelectElement>("jobAccount").value;
-  const groupId = mustGetElement<HTMLInputElement>("jobGroupId").value.trim();
+  const raw = mustGetElement<HTMLTextAreaElement>("jobGroupIds").value.trim();
+  const groupId = raw.split(/[\n,\t ]+/g).map((s) => s.trim()).filter(Boolean)[0] ?? "";
   if (!groupId) {
     setText("jobMsg", "Nhập Group ID trước.");
     return;
@@ -435,6 +638,26 @@ mustGetElement<HTMLButtonElement>("tplSpinPreview").addEventListener("click", as
   }
 });
 
+mustGetElement<HTMLButtonElement>("tplUploadImage").addEventListener("click", async () => {
+  await uploadImageFromFileInput({ fileInputId: "tplImageFile", urlInputId: "tplImageUrl", msgId: "tplMsg" });
+});
+
+mustGetElement<HTMLButtonElement>("jobUploadImage").addEventListener("click", async () => {
+  await uploadImageFromFileInput({ fileInputId: "jobImageFile", urlInputId: "jobImageUrl", msgId: "jobMsg" });
+});
+
+mustGetElement<HTMLButtonElement>("reApplyToTemplate").addEventListener("click", async () => {
+  try {
+    const tpl = buildRealEstateTemplate();
+    mustGetElement<HTMLInputElement>("tplName").value = tpl.title;
+    mustGetElement<HTMLTextAreaElement>("tplText").value = tpl.text;
+    setText("reMsg", "Đã áp dụng.");
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    setText("reMsg", message);
+  }
+});
+
 mustGetElement<HTMLButtonElement>("jobCreate").addEventListener("click", async () => {
   try {
     await createJob();
@@ -450,6 +673,25 @@ mustGetElement<HTMLButtonElement>("jobValidateGroup").addEventListener("click", 
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     setText("jobMsg", message);
+  }
+});
+
+mustGetElement<HTMLButtonElement>("groupsRefresh").addEventListener("click", async () => {
+  await refreshSavedGroups();
+});
+
+mustGetElement<HTMLButtonElement>("groupAddBtn").addEventListener("click", async () => {
+  try {
+    const groupId = parseGroupIdFromInput(mustGetElement<HTMLInputElement>("groupAddInput").value);
+    const name = mustGetElement<HTMLInputElement>("groupAddName").value.trim();
+    await apiFetch("/api/groups", { method: "POST", body: JSON.stringify({ groupId, name: name || undefined }) });
+    mustGetElement<HTMLInputElement>("groupAddInput").value = "";
+    mustGetElement<HTMLInputElement>("groupAddName").value = "";
+    setText("groupsMsg", "Added.");
+    await refreshSavedGroups();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    setText("groupsMsg", message);
   }
 });
 
@@ -478,7 +720,7 @@ mustGetElement<HTMLSelectElement>("jobTargetType").addEventListener("change", as
   const targetType = mustGetElement<HTMLSelectElement>("jobTargetType").value;
   const isPage = targetType === "PAGE";
   mustGetElement<HTMLSelectElement>("jobPage").disabled = !isPage;
-  mustGetElement<HTMLInputElement>("jobGroupId").disabled = isPage;
+  mustGetElement<HTMLTextAreaElement>("jobGroupIds").disabled = isPage;
 });
 
 void init();
