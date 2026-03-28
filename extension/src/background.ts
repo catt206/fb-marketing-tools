@@ -29,7 +29,7 @@ async function startFacebookOAuth(params: { scopes?: string[] }): Promise<{ code
   }
 
   const redirectUri = chrome.identity.getRedirectURL("fb");
-  const scopes = params.scopes ?? ["public_profile", "pages_show_list", "pages_manage_posts", "pages_read_engagement"];
+  const scopes = params.scopes ?? ["public_profile", "pages_show_list", "pages_read_engagement"];
 
   const authUrl = new URL("https://www.facebook.com/v20.0/dialog/oauth");
   authUrl.searchParams.set("client_id", config.facebookAppId);
