@@ -45,6 +45,8 @@ type AuditLog = {
 let auditCursor: string | null = null;
 
 async function init() {
+  await loadConfigUi();
+
   const auth = await getAuthState();
   setText("dashStatus", auth.jwtToken ? "AUTHENTICATED" : "NOT_AUTHENTICATED");
   mustGetElement<HTMLButtonElement>("dashLogout").disabled = !auth.jwtToken;
@@ -53,7 +55,7 @@ async function init() {
     return;
   }
 
-  await Promise.all([loadConfigUi(), loadSettingsUi(), refreshAccounts(), refreshTemplates(), refreshJobs(), refreshAudit(true)]);
+  await Promise.all([loadSettingsUi(), refreshAccounts(), refreshTemplates(), refreshJobs(), refreshAudit(true)]);
   await refreshJobAccountOptions();
 }
 
@@ -63,10 +65,15 @@ async function loadConfigUi() {
   mustGetElement<HTMLInputElement>("facebookAppId").value = config.facebookAppId;
 
   mustGetElement<HTMLButtonElement>("saveConfig").addEventListener("click", async () => {
-    const backendBaseUrl = mustGetElement<HTMLInputElement>("backendBaseUrl").value.trim();
-    const facebookAppId = mustGetElement<HTMLInputElement>("facebookAppId").value.trim();
-    await setConfig({ backendBaseUrl, facebookAppId });
-    setText("configMsg", "Saved.");
+    try {
+      const backendBaseUrl = mustGetElement<HTMLInputElement>("backendBaseUrl").value.trim();
+      const facebookAppId = mustGetElement<HTMLInputElement>("facebookAppId").value.trim();
+      await setConfig({ backendBaseUrl, facebookAppId });
+      setText("configMsg", "Saved.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      setText("configMsg", message);
+    }
   });
 }
 
